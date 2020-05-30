@@ -1,87 +1,211 @@
 package client.panels;
 
-import client.components.SelectableTable;
-import client.components.SelectableTableModel;
+import client.components.table.ColourEditor;
+import client.components.table.ColourRenderer;
+import client.components.table.PictureEditor;
+import client.components.table.PictureRenderer;
+import client.components.table.ObjectTableModel;
+import client.components.table.IObjectTableModel;
+import client.services.PermissionsService;
+import client.services.SessionService;
+import common.models.*;
+import common.swing.Notification;
+import common.utils.session.HashingFactory;
+import common.utils.session.Session;
 
 import javax.swing.*;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
 
-public class UserPanel extends JPanel {
-    int selected;
-    JButton addButton = new JButton("New User");
-    Container pagination = new Container();
-    JButton first = new JButton("<<");
-    JButton prev = new JButton("<");
-    JButton next = new JButton(">");
-    JButton last = new JButton(">>");
+/**
+ * This class renders the Java Swing user panel for the client.
+ *
+ * @author Jamie Martin
+ */
+public class UserPanel extends JPanel implements ActionListener {
 
-    private String[] columnNames = {"Id", "Username", "Create Billboards", "Edit Billboards", "Schedule Billboards", "Edit Users", "View Billboards"};
+    // initialise components
+    IObjectTableModel<Permissions> tableModel;
+    JTable table;
+    Container buttonContainer = new Container();
+    JButton editButton = new JButton("Edit Password"),
+        createButton = new JButton("Create User"),
+        refreshButton = new JButton("Refresh"),
+        deleteButton = new JButton("Delete Selected");
+    String selected;
 
-    private Object[][] data = {
-        {0, "User 1", false, false, false, false, false},
-        {1, "User 2", true, true, true, true, true},
-    };
-
-    SelectableTableModel model = new SelectableTableModel(data, columnNames);
-    SelectableTable table = new SelectableTable(model, new ListSelectionListener() {
-        public void valueChanged(ListSelectionEvent e) {
-            selected = (int) table.getValueAt(table.getSelectedRow(), 0);
-            System.out.println(selected);
-        }
-    });
-
-    JScrollPane scrollPane = new JScrollPane(table);
-
-
+    /**
+     * The User Panel constructor that generates the UserPanel GUI.
+     */
     public UserPanel() {
-        setLayout(new GridBagLayout());
-        pagination.setLayout(new GridLayout());
-        addComponentsToContainer();
+        // add the action listeners
+        createButton.addActionListener(this);
+        editButton.addActionListener(this);
+        refreshButton.addActionListener(this);
+        deleteButton.addActionListener(this);
+
+        // default enable/disabled for buttons
+        editButton.setEnabled(false);
+        deleteButton.setEnabled(false);
+
+        // initialise the table
+        tableModel = new ObjectTableModel<>(Permissions.class, PermissionsService.getInstance());
+        tableModel.setObjectRows(PermissionsService.getInstance().refresh());
+        table = new JTable(tableModel);
+
+        setupSelection();
+        JScrollPane pane = new JScrollPane(table);
+
+        // add the buttons to the container
+        buttonContainer.setLayout(new FlowLayout());
+        buttonContainer.add(createButton);
+        buttonContainer.add(editButton);
+        buttonContainer.add(deleteButton);
+        buttonContainer.add(refreshButton);
+
+        setLayout(new BorderLayout());
+        add(buttonContainer, BorderLayout.NORTH);
+        add(pane, BorderLayout.CENTER);
+        setVisible(true);
     }
 
-    public void addComponentsToContainer() {
-        GridBagConstraints gbc = new GridBagConstraints();
-        Insets i = new Insets(5, 5, 5, 5);
-        gbc.insets = i;
-        gbc.fill = GridBagConstraints.CENTER;
-        gbc.gridwidth = 1;
+    /**
+     * Sets up the selection logic for the table.
+     */
+    public void setupSelection() {
+        table.setAutoCreateRowSorter(true);
+        table.setCellSelectionEnabled(true);
+        ListSelectionModel cellSelectionModel = table.getSelectionModel();
+        cellSelectionModel.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        add(addButton, gbc);
+        cellSelectionModel.addListSelectionListener(e -> {
+            selected = (String)table.getModel().getValueAt(table.getSelectedRow(), 1);
 
-        GridBagConstraints table_gbc = new GridBagConstraints();
+            if (selected != null) {
+                editButton.setEnabled(true);
+                deleteButton.setEnabled(true);
+            } else {
+                editButton.setEnabled(false);
+                deleteButton.setEnabled(false);
+            }
+        });
 
-        table_gbc.weightx = 1.0;
-        table_gbc.weighty = 1.0;
-        table_gbc.gridx = 0;
-        table_gbc.gridy = 1;
-        table_gbc.gridwidth = 6;
-        table_gbc.fill = GridBagConstraints.BOTH;
-        add(scrollPane, table_gbc);
+    }
 
-        gbc.fill = GridBagConstraints.HORIZONTAL;
+    /**
+     * Adding listener events for the user panel buttons.
+     *
+     * @param e Pass through the action event to manage the respective action.
+     */
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        // Check if create button is pressed
+        if(e.getSource() == createButton){
+            try {
+                // initialise create user components
+                JTextField username = new JTextField();
+                JPasswordField password = new JPasswordField();
+                JCheckBox canCreateBillboard = new JCheckBox();
+                JCheckBox canEditBillboard = new JCheckBox();
+                JCheckBox canScheduleBillboard = new JCheckBox();
+                JCheckBox canEditUser = new JCheckBox();
 
-        gbc.gridx = 0;
-        pagination.add(first, gbc);
+                // build component container
+                final JComponent[] components = new JComponent[] {
+                    new JLabel("Username"),
+                    username,
+                    new JLabel("Password"),
+                    password,
+                    new JLabel("Can Create Billboards"),
+                    canCreateBillboard,
+                    new JLabel("Can Edit Billboards"),
+                    canEditBillboard,
+                    new JLabel("Can Schedule Billboards"),
+                    canScheduleBillboard,
+                    new JLabel("Can Edit Users"),
+                    canEditUser
+                };
 
-        gbc.gridx = 1;
-        pagination.add(prev, gbc);
+                // get the result from the inputs
+                int result = JOptionPane.showConfirmDialog(this, components, "Create new User", JOptionPane.PLAIN_MESSAGE);
 
-        gbc.gridx = 3;
-        pagination.add(next, gbc);
+                if (result == JOptionPane.OK_OPTION) {
+                    if (username.getText().isEmpty()) {
+                        Notification.display("Username cannot be null. Please try again");
+                    } else if (String.valueOf(password.getPassword()).isEmpty()) {
+                        Notification.display("Password cannot be null. Please try again");
+                    } else {
+                        // convert values to User + Permission object
+                        User user = new User();
+                        user.username = username.getText();
+                        user.password = HashingFactory.hashPassword(String.valueOf(password.getPassword()));
 
-        gbc.gridx = 4;
-        pagination.add(last, gbc);
+                        Permissions permissions = new Permissions(username.getText(), canCreateBillboard.isSelected(), canEditBillboard.isSelected(), canScheduleBillboard.isSelected(), canEditUser.isSelected());
 
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        gbc.gridwidth = 4;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.CENTER;
-        add(pagination, gbc);
+                        // send insert to server and fire updates to table model
+                        tableModel.setObjectRows(PermissionsService.getInstance().insert(new UserPermissions(user, permissions)));
+                        tableModel.fireTableDataChanged();
+                    }
+                }
+            } catch (Exception ex) {
+                Notification.display(ex.getMessage());
+            }
+        }
+        // Check if edit button is pressed
+        if(e.getSource() == editButton){
+            // get new password
+            String result = (String)JOptionPane.showInputDialog(
+                this,
+                "Input a new password for user: " + selected,
+                "Edit Password",
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                null,
+                ""
+            );
 
+            if (result != null) {
+                if (result.isEmpty()) {
+                    Notification.display("Password cannot be blank");
+                } else {
+                    int id = tableModel.getObjectRows().stream().filter(x -> x.username.equals(selected)).findFirst().get().id;
+
+                    try {
+                        // try update the password
+                        PermissionsService.getInstance().updatePassword(selected, result);
+                    } catch (Exception exception) {
+                        Notification.display(exception.getMessage());
+                    }
+                }
+            }
+        }
+        // Check if refresh button is pressed
+        if (e.getSource() == refreshButton) {
+            tableModel.setObjectRows(PermissionsService.getInstance().refresh());
+            tableModel.fireTableDataChanged();
+        }
+        // Check if delete button is pressed
+        if (e.getSource() == deleteButton) {
+            Session session = SessionService.getInstance();
+            var permissionList = tableModel.getObjectRows();
+
+            // handle edge cases
+            if (session.username.equals(selected)) {
+                Notification.display("Cannot delete yourself!");
+            } else if (permissionList.size() == 1) {
+                Notification.display("Cannot delete the only user!");
+            } else {
+                Permissions permissions = permissionList.stream().filter(x -> x.username.equals(selected)).findFirst().get();
+
+                User u = new User();
+                u.id = permissions.id;
+                u.username = permissions.username;
+                // send a delete to the controller service for the selected user
+                tableModel.setObjectRows(PermissionsService.getInstance().delete(u));
+                tableModel.fireTableDataChanged();
+            }
+        }
     }
 }

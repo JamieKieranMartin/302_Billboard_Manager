@@ -1,25 +1,45 @@
 package common.models;
 
+import common.sql.SQLITE;
 import common.utils.RandomFactory;
 
 import java.io.Serializable;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 
 /**
  * This class consists of the user object and its associated methods.
  *
  * @author Perdana Bailey
- * @author Kevin Huynh
+ * @author Hieu Nghia Huynh
  * @author Jamie Martin
  */
-public class User implements Serializable {
+@SQLITE
+public class User extends Object implements Serializable{
     /**
-     * The variables of the object User
+     * The users ID.
      */
+    @SQLITE(type="INTEGER PRIMARY KEY AUTOINCREMENT")
     public int id;
+
+    /**
+     * The users username.
+     */
+    @SQLITE(type="VARCHAR(255) NOT NULL UNIQUE")
     public String username;
+
+    /**
+     * The users password.
+     *
+     * <b>This value is only stored as a hash and temporarily to avoid a data breach.</b>
+     */
+    @SQLITE(type="VARCHAR(255)")
     public String password;
+
+    /**
+     * The users password salt.
+     *
+     * <b>This value is only stored temporarily to avoid a data breach.</b>
+     */
+    @SQLITE(type="VARCHAR(255)")
     public String salt;
 
     /**
@@ -30,11 +50,11 @@ public class User implements Serializable {
     }
 
     /**
-     * User object constructor
+     * User object constructor.
      *
-     * @param username: users username.
-     * @param password: users password hash.
-     * @param salt:     users password salt.
+     * @param username Users username.
+     * @param password Users password hash.
+     * @param salt Users password salt.
      */
     public User(String username, String password, String salt) {
         this.username = username;
@@ -45,10 +65,10 @@ public class User implements Serializable {
     /**
      * User object constructor
      *
-     * @param id: users id.
-     * @param username: users username.
-     * @param password: users password.
-     * @param salt: users salt.
+     * @param id Users id.
+     * @param username Users username.
+     * @param password Users password.
+     * @param salt Users salt.
      */
     public User(int id, String username, String password, String salt) {
         this.id = id;
@@ -58,41 +78,9 @@ public class User implements Serializable {
     }
 
     /**
-     * Change the password of the user
+     * Generates a User object with random variables.
      *
-     * @param newPass, the new password hash.
-     */
-    public void changePassword(String newPass) {
-        this.password = newPass;
-    }
-
-    /**
-     * Try login with the password for this user.
-     *
-     * @param pass, the password input
-     */
-    public boolean tryLogin(String pass) {
-        return this.password.equals(pass);
-    }
-
-    /**
-     * Parses the SQL result set and returns a user object.
-     *
-     * @param rs: the result set from an SQL SELECT query.
-     * @return Billboard: the user object after converting from SQL.
-     * @throws SQLException: this is thrown when there is an issue with getting values from the query.
-     */
-    public static User fromSQL(ResultSet rs) throws SQLException {
-        return new User(
-            rs.getInt("id"),
-            rs.getString("username"),
-            rs.getString("password"),
-            rs.getString("salt"));
-    }
-
-    /**
-     * Generates a User object with random variables
-     * @return a randomised User object
+     * @return A randomised User object.
      */
     public static User Random() {
         return new User(

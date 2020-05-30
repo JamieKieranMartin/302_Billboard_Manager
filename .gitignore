@@ -102,6 +102,7 @@ cmake-build-debug/
 
 # IntelliJ
 /out/
+.idea/workspace.xml
 
 # mpeltonen/sbt-idea plugin
 .idea_modules/
@@ -149,6 +150,5 @@ buildNumber.properties
 !/.mvn/wrapper/maven-wrapper.jar
 
 # db.props will be different for each other
-db.props
 .idea
-cab302.db
+!sqlite-jdbc-3.30.1.jar
